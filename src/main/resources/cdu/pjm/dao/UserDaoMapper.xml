@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--对应UserDao接口中的方法-->
+<mapper namespace="cdu.pjm.dao.UserDao">
+    <!--动态sql if标签-->
+    <sql id="user_query">
+        select id, username,password, sex, t_user.regist_time registTime, hobby
+        from t_user
+    </sql>
+
+    <!-- 1. queryUsers-->
+    <select id="cdu.pjm.dao.UserDao.findAll" resultType="User">
+        <include refid="user_query"/>
+    </select>
+
+    <!-- 2. user"Log -->
+    <select id="cdu.pjm.dao.UserDao.userLog" resultType="User">
+        <include refid="user_query"/>
+        where username=#{username} and password=#{password}
+    </select>
+</mapper>

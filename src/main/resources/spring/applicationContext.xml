@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/aop
+                           http://www.springframework.org/schema/aop/spring-aop.xsd
+                           http://www.springframework.org/schema/context
+                           http://www.springframework.org/schema/context/spring-context.xsd
+                           http://www.springframework.org/schema/cache
+                           http://www.springframework.org/schema/cache/spring-cache.xsd
+                           http://www.springframework.org/schema/tx
+                           http://www.springframework.org/schema/tx/spring-tx.xsd">
+<!--
+    1. 扫描器
+-->
+    <context:component-scan base-package="cdu.pjm.**">
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+
+<!--
+    2. 整合Mybaits
+-->
+    <!--2.1导入jdbc.properties 配置文件-->
+    <context:property-placeholder location="classpath:conf/jdbc.properties"/>
+    <!--2.2配置Druid连接池-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <!-- 驱动 -->
+        <property name="driverClassName" value="${jdbc.driver}"/>
+        <!-- 链接基本配置 -->
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+
+        <!-- 配置初始化大小 最大链接 最小链接 -->
+        <property name="initialSize" value="${jdbc.init}"></property>
+        <property name="minIdle" value="${jdbc.minIdle}"></property>
+        <property name="maxActive" value="${jdbc.maxActive}"></property>
+
+        <!--链接超时等待时间  ms-->
+        <property name="maxWait" value="60000"></property>
+        <!-- 多长时间进行链接检测需要关闭的链接  ms-->
+        <property name="timeBetweenEvictionRunsMillis" value="60000"></property>
+        <!-- 链接池中最小生存时间  ms-->
+        <property name="minEvictableIdleTimeMillis" value="300000"></property>
+    </bean>
+    <!--2.3工厂代理SqlSessionFactory-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--注入链接池-->
+        <property name="dataSource" ref="dataSource"></property>
+        <!--注入daoMapper-->
+        <property name="mapperLocations">
+            <list>
+                <value>classpath:cdu/pjm/dao/UserDaoMapper.xml</value>
+            </list>
+        </property>
+        <!--对 dao-mapper中的实体定义缺省路径-->
+        <property name="typeAliasesPackage" value="cdu.pjm.model"></property>
+        <!-- 分页助手 -->
+        <property name="plugins">
+            <array>
+                <bean class="com.github.pagehelper.PageInterceptor">
+                    <property name="properties">
+                        <props>
+                            <!--自动调整页号到合理值-->
+                            <prop key="reasonable">true</prop>
+                        </props>
+                    </property>
+                </bean>
+            </array>
+        </property>
+    </bean>
+    <!--2.4管理dao实现类的创建  mapperScannerConfigurer-->
+    <bean id="mapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!-- dao接口所在的bao 多个包用','分隔 -->
+        <property name="basePackage" value="cdu.pjm.dao"></property>
+        <!-- sqlSessionFactoryBean 配置 (唯一时可不写) -->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+    </bean>
+
+<!--
+    3. 事务管理器
+-->
+    <bean id="tx" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+    <!--3.1定制事务-->
+    <tx:advice id="txManger" transaction-manager="tx">
+        <!--事务属性-->
+        <tx:attributes>
+            <tx:method name="query*" propagation="SUPPORTS" rollback-for="Exception"/>
+            <tx:method name="find*" propagation="SUPPORTS" rollback-for="Exception"/>
+            <tx:method name="get*" propagation="SUPPORTS" rollback-for="Exception"/>
+            <tx:method name="add*"/>
+            <tx:method name="insert*"/>
+            <tx:method name="save*"/>
+            <tx:method name="delete*"/>
+            <tx:method name="update*"/>
+            <tx:method name="*"/>
+        </tx:attributes>
+    </tx:advice>
+    <!--3.2编制-->
+    <aop:config>
+        <aop:pointcut id="pc_tx" expression="execution(* cdu.pjm.service..*.*(..))"/>
+        <aop:advisor advice-ref="txManger" pointcut-ref="pc_tx"></aop:advisor>
+    </aop:config>
+</beans>
